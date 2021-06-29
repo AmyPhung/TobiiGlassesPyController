@@ -1,4 +1,4 @@
-# streaming.py : A demo for data streaming
+# connect.py : A demo code for connecting with the Tobii Pro Glasses 2
 #
 # Copyright (C) 2019  Davide De Tommaso
 #
@@ -15,30 +15,32 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>
 
-import time
-import json
 from tobiiglassesctrl import TobiiGlassesController
-
 
 def main():
 
-	tobiiglasses = TobiiGlassesController("192.168.71.50")
-	print(tobiiglasses.get_battery_status())
+	"""
+	How to connect with the tobii glasses
 
-	tobiiglasses.start_streaming()
-	print("Please wait ...")
-	time.sleep(3.0)
+	0. Automatic discovery of the device
 
-	for i in range(1000):
-		print("Head unit: %s" % tobiiglasses.get_data()['mems'])
-		print("Left Eye: %s " % tobiiglasses.get_data()['left_eye'])
-		print("Right Eye: %s " % tobiiglasses.get_data()['right_eye'])
-		print("Gaze Position: %s " % tobiiglasses.get_data()['gp'])
-		print("Gaze Position 3D: %s " % tobiiglasses.get_data()['gp3'])
+	TobiiGlassesController()
 
-	tobiiglasses.stop_streaming()
-	tobiiglasses.close()
+	1. If you know the IPv6 addr of the tobii glasses
 
+	TobiiGlassesController("fe80::76fe:48ff:ff00:hell")
+
+	2. If you know the IPv6 addr of the tobii glasses and the net interface
+	   of your host system (in case of multiple interfaces)
+
+	TobiiGlassesController("fe80::76fe:48ff:ff00:ff00%eth0")
+
+	3. If you know the IPv4 addr of the tobii glasses (WLAN or LAN connections)
+
+	TobiiGlassesController("192.168.71.50")
+	"""
+
+	TobiiGlassesController("fe80::76fe:48ff:fe36:fa20%enx00e09c1019d9")
 
 
 if __name__ == '__main__':

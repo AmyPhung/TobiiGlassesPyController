@@ -18,9 +18,9 @@
 import cv2
 import numpy as np
 
-address = "192.168.71.50"
-#address = "fe80::76fe:48ff:ff00:ff00"
-cap = cv2.VideoCapture("rtsp://%s:8554/live/scene" % address)
+# address = "192.168.71.50"
+address = "fe80::76fe:48ff:fe36:fa20"
+cap = cv2.VideoCapture("rtsp://[%s]:8554/live/scene" % address)
 
 # Check if camera opened successfully
 if (cap.isOpened()== False):

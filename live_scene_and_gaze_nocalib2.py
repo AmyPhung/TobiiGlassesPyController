@@ -23,7 +23,7 @@ if hasattr(__builtins__, 'raw_input'):
 
 from tobiiglassesctrl import TobiiGlassesController
 
-ipv4_address = "192.168.71.50"
+ipv4_address = "192.168.1.101"
 
 tobiiglasses = TobiiGlassesController(ipv4_address, video_scene=True)
 
