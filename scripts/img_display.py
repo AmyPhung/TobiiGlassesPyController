@@ -15,7 +15,7 @@ dim = (img_width, img_height)
 resized = cv2.resize(input_img, dim, interpolation = cv2.INTER_AREA)
 
 # Allocate space for output image
-output_img = np.ones((img_height + 2*TAG_SIZE + 4*TAG_BORDER,
+output_img = np.ones((img_height + 2*TAG_BORDER,
                       img_width + 2*TAG_SIZE + 4*TAG_BORDER, 3),
                       dtype="uint8")*255 # 255 for white background
 
@@ -39,15 +39,15 @@ output_img[TAG_BORDER:TAG_SIZE+TAG_BORDER,
 output_img[TAG_BORDER:TAG_SIZE+TAG_BORDER,
            TAG_BORDER+TAG_SIZE+TAG_BORDER+img_width+TAG_BORDER:-TAG_BORDER] \
            = ur_tag
-output_img[TAG_BORDER+TAG_SIZE+TAG_BORDER+img_height+TAG_BORDER:-TAG_BORDER,
+output_img[-(TAG_SIZE+TAG_BORDER):-TAG_BORDER,
            TAG_BORDER:TAG_SIZE+TAG_BORDER] \
            = bl_tag
-output_img[TAG_BORDER+TAG_SIZE+TAG_BORDER+img_height+TAG_BORDER:-TAG_BORDER,
+output_img[-(TAG_SIZE+TAG_BORDER):-TAG_BORDER,
            TAG_BORDER+TAG_SIZE+TAG_BORDER+img_width+TAG_BORDER:-TAG_BORDER] \
            = br_tag
 
 # Put resized image in output image
-output_img[TAG_BORDER+TAG_SIZE+TAG_BORDER:-(TAG_BORDER+TAG_SIZE+TAG_BORDER),
+output_img[TAG_BORDER:-TAG_BORDER,
            TAG_BORDER+TAG_SIZE+TAG_BORDER:-(TAG_BORDER+TAG_SIZE+TAG_BORDER)] \
            = resized
 
