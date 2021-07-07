@@ -44,15 +44,15 @@ class ArucoWindow():
                           dtype="uint8") # Upper left
         ur_tag = np.zeros((self.tag_size, self.tag_size, 1),
                           dtype="uint8") # Upper right
-        bl_tag = np.zeros((self.tag_size, self.tag_size, 1),
-                          dtype="uint8") # Bottom left
         br_tag = np.zeros((self.tag_size, self.tag_size, 1),
+                          dtype="uint8") # Bottom left
+        bl_tag = np.zeros((self.tag_size, self.tag_size, 1),
                           dtype="uint8") # Bottom right
 
         cv2.aruco.drawMarker(arucoDict, 0, self.tag_size, ul_tag, 1)
         cv2.aruco.drawMarker(arucoDict, 1, self.tag_size, ur_tag, 1)
-        cv2.aruco.drawMarker(arucoDict, 2, self.tag_size, bl_tag, 1)
-        cv2.aruco.drawMarker(arucoDict, 3, self.tag_size, br_tag, 1)
+        cv2.aruco.drawMarker(arucoDict, 2, self.tag_size, br_tag, 1)
+        cv2.aruco.drawMarker(arucoDict, 3, self.tag_size, bl_tag, 1)
 
         # Put tags in output image
         self.output_img[self.tag_border:self.tag_size+self.tag_border,
@@ -62,11 +62,11 @@ class ArucoWindow():
             3*self.tag_border+self.tag_size+self.img_width:-self.tag_border] \
             = ur_tag
         self.output_img[-(self.tag_size+self.tag_border):-self.tag_border,
-           self.tag_border:self.tag_size+self.tag_border] \
-           = bl_tag
-        self.output_img[-(self.tag_size+self.tag_border):-self.tag_border,
            3*self.tag_border+self.tag_size+self.img_width:-self.tag_border] \
            = br_tag
+        self.output_img[-(self.tag_size+self.tag_border):-self.tag_border,
+           self.tag_border:self.tag_size+self.tag_border] \
+           = bl_tag
 
     def updateFrame(self, frame):
         # Resize image
