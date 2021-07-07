@@ -31,6 +31,7 @@ from tobiiglassesctrl import TobiiGlassesController
 from aruco_interface import ArucoWindow
 from helper_functions import computeTagDetections
 from helper_functions import computeGazePixel
+from cv_bridge import CvBridge
 
 
 class TobiiGlassesNode():
@@ -43,6 +44,7 @@ class TobiiGlassesNode():
         rospy.init_node("tobii_glasses")
         self.rate = rospy.Rate(10) # 10hz
         self.display_img_sub = rospy.Subscriber("~camera", Image, self.display_img_callback)
+        self.bridge = CvBridge()
         # self.image_pub = rospy.Publisher("~camera", Image, queue_size=1)
 
         if rospy.has_param("aruco_params"): # Load ROS parameters
@@ -97,8 +99,11 @@ class TobiiGlassesNode():
 
     def display_img_callback(self, msg):
         # TODO: Convert image here
+        print("here")
         # self.display_frame = converted message
-        self.display_window.updateFrame()
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+        self.display_frame = cv_image
+        self.display_window.updateFrame(cv_image)
 
     def updateTagDetections(self, corners, ids):
         for (markerCorner, markerID) in zip(corners, ids):
@@ -118,7 +123,7 @@ class TobiiGlassesNode():
         while self.cap.isOpened() and not rospy.is_shutdown():
             # Capture frame-by-frame from Tobii glasses
             # Flush buffer
-            for i in range(3):
+            for i in range(2):
                 ret, tobii_frame = self.cap.read()
             ret, tobii_frame = self.cap.read()
 
@@ -180,5 +185,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
     tobii_node.run()

@@ -95,9 +95,9 @@ class ArucoWindow():
     def updateCursor(self, x, y):
         # TODO: error checking
         self.cursor = (int(x),int(y))
-        # disp = self.output_img.copy()
-        cv2.circle(self.output_img, self.cursor, 10, (255, 0, 0), -1)
-        cv2.imshow("ArucoWindow", self.output_img)
+        disp = self.output_img.copy()
+        cv2.circle(disp, self.cursor, 10, (255, 0, 0), -1)
+        cv2.imshow("ArucoWindow", disp)
 
 if __name__ == "__main__":
     TAG_SIZE = 100 # px
