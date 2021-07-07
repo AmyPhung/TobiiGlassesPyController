@@ -147,10 +147,16 @@ class TobiiGlassesNode():
                 # Only compute gaze position if all the data required
                 if self.verifyData(self.tags, gaze_position):
                 # if len(corners) and len(gaze_position):# TODO: only allow this if there are 4 tags
-                    gaze_window_pos = computeGazePixel(self.display_frame,
+                    gaze_tobii_pos, gaze_window_pos, ctrl_corners_tobii, ctrl_corners_window = computeGazePixel(self.display_frame,
                         tobii_frame, self.tags, self.params, gaze_position)
+
+                    #TEMPORARY
+                    cv2.circle(tobii_frame, (gaze_tobii_pos[0], gaze_tobii_pos[1]), 10, (0,255,255), -1)
+                    for corner in ctrl_corners_tobii:
+                        cv2.circle(tobii_frame, tuple(corner), 3, (255, 0, 255), -1)
+
                     # Update cursor in display window
-                    self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1])
+                    self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1], ctrl_corners_window)
 
 
                 # Display the resulting frame
@@ -185,5 +191,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
     tobii_node.run()

@@ -42,6 +42,13 @@ def computeTagDetections(image):
     		print("[INFO] ArUco marker ID: {}".format(markerID))
     return image, corners, ids
 
+def perspectiveTransform(x, y, H):
+    #https://answers.opencv.org/question/54886/how-does-the-perspectivetransform-function-work/
+    w = H[2][0] * x + H[2][1] * y + H[2][2] * 1
+    x_tf = (H[0][0] * x + H[0][1] * y + H[0][2] * 1) / w
+    y_tf = (H[1][0] * x + H[1][1] * y + H[1][2] * 1) / w
+    return [x_tf, y_tf]
+
 def computeGazePixel(src_img, live_img, tags, params, gaze_info):
     # computeGazePixel(self.display_frame, self.tags, self.params)
     """Computes pixel (u,v) in image """
@@ -51,8 +58,6 @@ def computeGazePixel(src_img, live_img, tags, params, gaze_info):
     # Compute mapping between Tobii camera feed and Aruco window
     H, status = cv2.findHomography(ctrl_corners_tobii, ctrl_corners_window)
 
-
-
     # Use H matrix to map gaze onto Aruco window
     # TODO: visualize this
 
@@ -60,13 +65,15 @@ def computeGazePixel(src_img, live_img, tags, params, gaze_info):
     # print(ctrl_corners_tobii)
     # print(ctrl_corners_window)
     gaze_tobii_pos = np.array([gaze_info[0], gaze_info[1], 1])
-    gaze_window_pos = np.matmul(H, gaze_tobii_pos)
+    # gaze_window_pos = np.matmul(H, gaze_tobii_pos)
+    # print("math stuff")
     # print(H)
-    print(gaze_window_pos)
+    # print(gaze_window_pos)
+    # print(gaze_tobii_pos)
 
-    return gaze_window_pos # TODO: return actual gaze pixel too
+    gaze_window_pos = perspectiveTransform(gaze_info[0], gaze_info[1], H)
 
-
+    return gaze_tobii_pos, gaze_window_pos, ctrl_corners_tobii, ctrl_corners_window # TODO: return actual gaze pixel too
 
 def getControlCornersInTobii(tags):
     """ Returns 'control corners' as the pixel position they appear in

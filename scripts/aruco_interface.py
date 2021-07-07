@@ -92,12 +92,22 @@ class ArucoWindow():
         # cv2.circle(self.output_img, self.cursor, 10, (255, 0, 0), -1)
         cv2.imshow("ArucoWindow", self.output_img)
 
-    def updateCursor(self, x, y):
+    def updateCursor(self, x, y, corners):
         # TODO: error checking
         self.cursor = (int(x),int(y))
         disp = self.output_img.copy()
         cv2.circle(disp, self.cursor, 10, (255, 0, 0), -1)
+
+        for corner in corners:
+            coords = (int(corner[0]),int(corner[1]))
+            cv2.circle(disp, coords, 4, (255, 255, 0), -1)
+
         cv2.imshow("ArucoWindow", disp)
+
+    # def updateCorners(self, corners):
+    #     # TODO: error checking
+
+        # cv2.imshow("ArucoWindow", disp)
 
 if __name__ == "__main__":
     TAG_SIZE = 100 # px
