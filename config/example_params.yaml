@@ -1,0 +1,5 @@
+# YAML example, more readable by humans
+aruco_params:
+  tag_size: 100
+  tag_border: 10
+  image_rescale: 1
