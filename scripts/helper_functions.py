@@ -48,9 +48,24 @@ def computeGazePixel(src_img, live_img, tags, params, gaze_info):
     ctrl_corners_tobii = getControlCornersInTobii(tags)
     ctrl_corners_window = getControlCornersInWindow(src_img, params)
 
-    print(ctrl_corners_tobii)
-    print(ctrl_corners_window)
     # Compute mapping between Tobii camera feed and Aruco window
+    H, status = cv2.findHomography(ctrl_corners_tobii, ctrl_corners_window)
+
+
+
+    # Use H matrix to map gaze onto Aruco window
+    # TODO: visualize this
+
+
+    # print(ctrl_corners_tobii)
+    # print(ctrl_corners_window)
+    gaze_tobii_pos = np.array([gaze_info[0], gaze_info[1], 1])
+    gaze_window_pos = np.matmul(H, gaze_tobii_pos)
+    # print(H)
+    print(gaze_window_pos)
+
+    return gaze_window_pos # TODO: return actual gaze pixel too
+
 
 
 def getControlCornersInTobii(tags):

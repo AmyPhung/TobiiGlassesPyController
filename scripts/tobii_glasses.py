@@ -117,6 +117,9 @@ class TobiiGlassesNode():
     def run(self):
         while self.cap.isOpened() and not rospy.is_shutdown():
             # Capture frame-by-frame from Tobii glasses
+            # Flush buffer
+            for i in range(3):
+                ret, tobii_frame = self.cap.read()
             ret, tobii_frame = self.cap.read()
 
             if ret == True:
@@ -139,8 +142,10 @@ class TobiiGlassesNode():
                 # Only compute gaze position if all the data required
                 if self.verifyData(self.tags, gaze_position):
                 # if len(corners) and len(gaze_position):# TODO: only allow this if there are 4 tags
-                    computeGazePixel(self.display_frame, tobii_frame, self.tags,
-                        self.params, gaze_position)
+                    gaze_window_pos = computeGazePixel(self.display_frame,
+                        tobii_frame, self.tags, self.params, gaze_position)
+                    # Update cursor in display window
+                    self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1])
 
 
                 # Display the resulting frame
@@ -175,5 +180,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
     tobii_node.run()

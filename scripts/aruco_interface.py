@@ -26,6 +26,8 @@ class ArucoWindow():
         self.img_height = 0
         self.img_width = 0
 
+        self.cursor = (0,0)
+
         # Create resizable display window
         cv2.namedWindow("ArucoWindow", cv2.WINDOW_NORMAL)
 
@@ -86,9 +88,16 @@ class ArucoWindow():
                 2*self.tag_border+self.tag_size:-(2*self.tag_border+self.tag_size)] \
                 = resized
 
-            cv2.imshow("ArucoWindow", self.output_img)
+        # # Update cursor
+        # cv2.circle(self.output_img, self.cursor, 10, (255, 0, 0), -1)
+        cv2.imshow("ArucoWindow", self.output_img)
 
-
+    def updateCursor(self, x, y):
+        # TODO: error checking
+        self.cursor = (int(x),int(y))
+        # disp = self.output_img.copy()
+        cv2.circle(self.output_img, self.cursor, 10, (255, 0, 0), -1)
+        cv2.imshow("ArucoWindow", self.output_img)
 
 if __name__ == "__main__":
     TAG_SIZE = 100 # px
