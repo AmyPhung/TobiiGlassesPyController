@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 tobii_glasses.py
 
@@ -22,6 +23,7 @@ import numpy as np
 # ROS Imports
 import rospy
 from sensor_msgs.msg import Image
+from tobii_glasses.msg import PixelLabeled
 
 if hasattr(__builtins__, 'raw_input'):
       input=raw_input
@@ -45,7 +47,9 @@ class TobiiGlassesNode():
         rospy.init_node("tobii_glasses")
         self.rate = rospy.Rate(10) # 10hz
         # self.display_img_sub = rospy.Subscriber("~camera", Image, self.display_img_callback)
-        self.display_img_sub = rospy.Subscriber("/kinect2/hd/image_color", Image, self.display_img_callback)
+        self.display_img_sub = rospy.Subscriber("/kinect2/sd/image_color_rect", Image, self.display_img_callback)
+        self.display_img_msg = None
+        self.cursor_pub = rospy.Publisher("gaze_pixel_position", PixelLabeled, queue_size=1)
 
         self.bridge = CvBridge()
         # self.image_pub = rospy.Publisher("~camera", Image, queue_size=1)
@@ -103,6 +107,9 @@ class TobiiGlassesNode():
         self.ready = True
 
     def display_img_callback(self, msg):
+        # Save ROS messsage
+        self.display_img_msg = msg
+
         # Convert image from ROS message to cv frame
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
 
@@ -110,8 +117,10 @@ class TobiiGlassesNode():
         # Rotate image (needed for kinect)
         cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
 
+        # Save cv frame
         self.display_frame = cv_image
 
+        # Update visualization
         if self.ready:
             self.display_window.updateFrame(cv_image)
 
@@ -128,6 +137,20 @@ class TobiiGlassesNode():
             if not len(tags[tag]):
                 return False
         return True
+
+    def createCursorMsg(self, x, y, img_height, img_width):
+        cursor_msg = PixelLabeled()
+
+        cursor_msg.header.stamp = rospy.Time.now()
+        if self.display_img_msg:
+            cursor_msg.header.frame_id = self.display_img_msg.header.frame_id
+
+        cursor_msg.x = x
+        cursor_msg.y = y
+        cursor_msg.img_height = img_height
+        cursor_msg.img_width = img_width
+
+        return cursor_msg
 
     def run(self):
         while self.cap.isOpened() and not rospy.is_shutdown():
@@ -160,14 +183,21 @@ class TobiiGlassesNode():
                     gaze_tobii_pos, gaze_window_pos, ctrl_corners_tobii, ctrl_corners_window = computeGazePixel(self.display_frame,
                         tobii_frame, self.tags, self.params, gaze_position)
 
-                    #TEMPORARY
+                    # TODO: compute actual image pixel
+
+                    # Publish result to ROS
+                    # cursor_msg.header
+                    self.createCursorMsg(gaze_window_pos[0], gaze_window_pos[1],
+                                         10,3) #  TODO: THIS IS TEMPORARY
+                    self.cursor_pub.publish(cursor_msg)
+
+                    #TEMPORARY VISUALIZATION
                     cv2.circle(tobii_frame, (gaze_tobii_pos[0], gaze_tobii_pos[1]), 10, (0,255,255), -1)
                     for corner in ctrl_corners_tobii:
                         cv2.circle(tobii_frame, tuple(corner), 3, (255, 0, 255), -1)
 
                     # Update cursor in display window
                     self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1], ctrl_corners_window)
-
 
                 # Display the resulting frame
                 cv2.imshow('Tobii Pro Glasses 2 - Live Scene', tobii_frame)
