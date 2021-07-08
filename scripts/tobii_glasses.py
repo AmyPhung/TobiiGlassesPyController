@@ -36,6 +36,7 @@ from cv_bridge import CvBridge
 
 class TobiiGlassesNode():
     def __init__(self, ipv4_address, calibrate=True):
+        self.ready = False
         self.ipv4_address = ipv4_address
         self.tobii = TobiiGlassesController(self.ipv4_address,
                                             video_scene=True)
@@ -43,7 +44,9 @@ class TobiiGlassesNode():
         # ROS setup
         rospy.init_node("tobii_glasses")
         self.rate = rospy.Rate(10) # 10hz
-        self.display_img_sub = rospy.Subscriber("~camera", Image, self.display_img_callback)
+        # self.display_img_sub = rospy.Subscriber("~camera", Image, self.display_img_callback)
+        self.display_img_sub = rospy.Subscriber("/kinect2/hd/image_color", Image, self.display_img_callback)
+
         self.bridge = CvBridge()
         # self.image_pub = rospy.Publisher("~camera", Image, queue_size=1)
 
@@ -97,13 +100,20 @@ class TobiiGlassesNode():
 
         self.tags = {0:[], 1:[], 2:[], 3:[]}
 
+        self.ready = True
+
     def display_img_callback(self, msg):
-        # TODO: Convert image here
-        print("here")
-        # self.display_frame = converted message
+        # Convert image from ROS message to cv frame
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+
+        # TODO: Remove this
+        # Rotate image (needed for kinect)
+        cv_image = cv2.rotate(cv_image, cv2.ROTATE_180)
+
         self.display_frame = cv_image
-        self.display_window.updateFrame(cv_image)
+
+        if self.ready:
+            self.display_window.updateFrame(cv_image)
 
     def updateTagDetections(self, corners, ids):
         for (markerCorner, markerID) in zip(corners, ids):
@@ -191,5 +201,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
     tobii_node.run()

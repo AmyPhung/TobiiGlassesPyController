@@ -81,12 +81,14 @@ class ArucoWindow():
         if (img_height != self.img_height) or (img_width != self.img_width):
             self.img_height = img_height
             self.img_width = img_width
+
             self.initFrame()
             self.addCornerTags()
-            # Put resized image in output image
-            self.output_img[self.tag_border:-self.tag_border,
-                2*self.tag_border+self.tag_size:-(2*self.tag_border+self.tag_size)] \
-                = resized
+
+        # Put resized image in output image
+        self.output_img[self.tag_border:-self.tag_border,
+            2*self.tag_border+self.tag_size:-(2*self.tag_border+self.tag_size)] \
+            = resized
 
         # # Update cursor
         # cv2.circle(self.output_img, self.cursor, 10, (255, 0, 0), -1)
