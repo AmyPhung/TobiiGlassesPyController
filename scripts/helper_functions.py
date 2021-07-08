@@ -51,8 +51,7 @@ def perspectiveTransform(x, y, H):
     return [x_tf, y_tf]
 
 def computeGazePixel(src_img, live_img, tags, params, gaze_info):
-    # computeGazePixel(self.display_frame, self.tags, self.params)
-    """Computes pixel (u,v) in image """
+    """Computes pixel (x,y) in image """
     ctrl_corners_tobii = getControlCornersInTobii(tags)
     ctrl_corners_window = getControlCornersInWindow(src_img, params)
 
@@ -60,21 +59,23 @@ def computeGazePixel(src_img, live_img, tags, params, gaze_info):
     H, status = cv2.findHomography(ctrl_corners_tobii, ctrl_corners_window)
 
     # Use H matrix to map gaze onto Aruco window
-    # TODO: visualize this
-
-
-    # print(ctrl_corners_tobii)
-    # print(ctrl_corners_window)
     gaze_tobii_pos = np.array([gaze_info[0], gaze_info[1], 1])
-    # gaze_window_pos = np.matmul(H, gaze_tobii_pos)
-    # print("math stuff")
-    # print(H)
-    # print(gaze_window_pos)
-    # print(gaze_tobii_pos)
-
     gaze_window_pos = perspectiveTransform(gaze_info[0], gaze_info[1], H)
 
-    return gaze_tobii_pos, gaze_window_pos, ctrl_corners_tobii, ctrl_corners_window # TODO: return actual gaze pixel too
+    # Compute image pixel position
+    size, border, scale = params['tag_size'], params['tag_border'], params['image_rescale']
+    img_pos = [int((gaze_window_pos[0] - (size + border*2))/scale),
+               int((gaze_window_pos[1] - border)/scale)]
+
+    # Save intermediate computations for visualization
+    debug_info = {
+        'gaze_tobii_pos': gaze_tobii_pos,
+        'gaze_window_pos': gaze_window_pos,
+        'ctrl_corners_tobii': ctrl_corners_tobii,
+        'ctrl_corners_window': ctrl_corners_window
+    }
+
+    return img_pos, debug_info
 
 def getControlCornersInTobii(tags):
     """ Returns 'control corners' as the pixel position they appear in

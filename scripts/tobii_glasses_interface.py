@@ -99,7 +99,7 @@ class TobiiGlassesNode():
                                           image_rescale=self.params['image_rescale'])
 
         # TODO: Remove - temporary test
-        self.display_frame = cv2.imread("img/sample_img.jpg")
+        self.display_frame = cv2.imread("img/sample_img.jpg") # TODO: this needs to use ros paths
         self.display_window.updateFrame(self.display_frame)
 
         self.tags = {0:[], 1:[], 2:[], 3:[]}
@@ -179,19 +179,21 @@ class TobiiGlassesNode():
 
                 # Only compute gaze position if all the data required
                 if self.verifyData(self.tags, gaze_position):
-                # if len(corners) and len(gaze_position):# TODO: only allow this if there are 4 tags
-                    gaze_tobii_pos, gaze_window_pos, ctrl_corners_tobii, ctrl_corners_window = computeGazePixel(self.display_frame,
+                    img_pos, debug_info = computeGazePixel(self.display_frame,
                         tobii_frame, self.tags, self.params, gaze_position)
 
-                    # TODO: compute actual image pixel
-
                     # Publish result to ROS
-                    # cursor_msg.header
-                    self.createCursorMsg(gaze_window_pos[0], gaze_window_pos[1],
-                                         10,3) #  TODO: THIS IS TEMPORARY
+                    cursor_msg = self.createCursorMsg(img_pos[0], img_pos[1],
+                        self.display_frame.shape[0], self.display_frame.shape[1])
                     self.cursor_pub.publish(cursor_msg)
 
-                    #TEMPORARY VISUALIZATION
+                    # Visualization
+                    # TODO: Move to a separate function
+                    gaze_tobii_pos = debug_info['gaze_tobii_pos']
+                    gaze_window_pos = debug_info['gaze_window_pos']
+                    ctrl_corners_tobii = debug_info['ctrl_corners_tobii']
+                    ctrl_corners_window = debug_info['ctrl_corners_window']
+
                     cv2.circle(tobii_frame, (gaze_tobii_pos[0], gaze_tobii_pos[1]), 10, (0,255,255), -1)
                     for corner in ctrl_corners_tobii:
                         cv2.circle(tobii_frame, tuple(corner), 3, (255, 0, 255), -1)
