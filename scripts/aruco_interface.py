@@ -99,6 +99,7 @@ class ArucoWindow():
         self.cursor = (int(x),int(y))
         disp = self.output_img.copy()
         cv2.circle(disp, self.cursor, 10, (255, 0, 0), -1)
+        cv2.circle(disp, self.cursor, 60, (0,0,255), 5)
 
         for corner in corners:
             coords = (int(corner[0]),int(corner[1]))
