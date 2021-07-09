@@ -47,7 +47,7 @@ class TobiiGlassesNode():
         rospy.init_node("tobii_glasses")
         self.rate = rospy.Rate(10) # 10hz
         # self.display_img_sub = rospy.Subscriber("~camera", Image, self.display_img_callback)
-        self.display_img_sub = rospy.Subscriber("/kinect2/sd/image_color_rect", Image, self.display_img_callback)
+        self.display_img_sub = rospy.Subscriber("/kinect2/qhd/image_color", Image, self.display_img_callback)
         self.display_img_msg = None
         self.cursor_pub = rospy.Publisher("gaze_pixel_position", PixelLabeled, queue_size=1)
 
@@ -56,7 +56,6 @@ class TobiiGlassesNode():
 
         if rospy.has_param("aruco_params"): # Load ROS parameters
             self.params = rospy.get_param('aruco_params')
-            print(self.params)
         else:
             self.params = {'image_rescale': 1,
                            'tag_size': 100,
@@ -99,7 +98,8 @@ class TobiiGlassesNode():
                                           image_rescale=self.params['image_rescale'])
 
         # TODO: Remove - temporary test
-        self.display_frame = cv2.imread("img/sample_img.jpg") # TODO: this needs to use ros paths
+        # self.display_frame = cv2.imread("img/sample_img.jpg") # TODO: this needs to use ros paths
+        self.display_frame = np.ones((700, 1200, 3), dtype="uint8")*150 # 255 for white background
         self.display_window.updateFrame(self.display_frame)
 
         self.tags = {0:[], 1:[], 2:[], 3:[]}
@@ -224,7 +224,7 @@ class TobiiGlassesNode():
         # When everything done, release the video capture object
         self.cap.release()
 
-        # Closes all the framesstd_msgs
+        # Closes all the frames
         cv2.destroyAllWindows()
 
         self.tobii.stop_streaming()
@@ -233,5 +233,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
     tobii_node.run()
