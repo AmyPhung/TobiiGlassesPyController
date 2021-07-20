@@ -88,6 +88,9 @@ class TobiiGlassesNode():
 
         # Read until video is completed
         self.tobii.start_streaming()
+        video_freq = self.tobii.get_video_freq()
+        self.frame_duration = 1000.0/float(video_freq) #frame duration in ms
+        print(video_freq)
 
         # Create resizable live display window
         cv2.namedWindow('Tobii Pro Glasses 2 - Live Scene', cv2.WINDOW_NORMAL)
@@ -156,66 +159,76 @@ class TobiiGlassesNode():
         while self.cap.isOpened() and not rospy.is_shutdown():
             # Capture frame-by-frame from Tobii glasses
             # Flush buffer
-            for i in range(2):
-                ret, tobii_frame = self.cap.read()
+            # for i in range(2):
+            #     ret, tobii_frame = self.cap.read()
             ret, tobii_frame = self.cap.read()
 
             if ret == True:
                 height, width = tobii_frame.shape[:2]
-                data_gp  = self.tobii.get_data()['gp']
+                tobii_data = self.tobii.get_data()
+                data_gp  = tobii_data['gp']
+                data_pts = tobii_data['pts']
                 gaze_position = ()
 
                 if data_gp['ts'] > 0: # Check for gaze detection
-                    gaze_position = (int(data_gp['gp'][0]*width),
-                                     int(data_gp['gp'][1]*height))
+                    offset = data_gp['ts']/1000000.0 - data_pts['ts']/1000000.0
+                    if offset > 0.0 and offset <= self.frame_duration: # Get synced data only
+                        gaze_position = (int(data_gp['gp'][0]*width),
+                                         int(data_gp['gp'][1]*height))
 
-                    # Display eye tracking location
-                    cv2.circle(tobii_frame, gaze_position, 60, (0,0,255), 5)
+                        # Display eye tracking location
+                        cv2.circle(tobii_frame, gaze_position, 60, (0,0,255), 5)
+                        # cv2.circle(frame,(int(data_gp['gp'][0]*width),int(data_gp['gp'][1]*height)), 30, (0,0,255), 2)
+                        # print(data_gp['ts'])
+                        # print(rospy.Time.now())
+                        # print(data_gp.keys())
+                        # # print(data_gp['ts_video'])
 
-                tobii_frame, corners, ids = computeTagDetections(tobii_frame)
 
-                if len(corners):
-                    self.updateTagDetections(corners, ids)
+                        tobii_frame, corners, ids = computeTagDetections(tobii_frame)
 
-                # Only compute gaze position if all the data required
-                if self.verifyData(self.tags, gaze_position):
-                    img_pos, debug_info = computeGazePixel(self.display_frame,
-                        tobii_frame, self.tags, self.params, gaze_position)
+                        if len(corners):
+                            self.updateTagDetections(corners, ids)
 
-                    # Publish result to ROS
-                    cursor_msg = self.createCursorMsg(img_pos[0], img_pos[1],
-                        self.display_frame.shape[0], self.display_frame.shape[1])
-                    self.cursor_pub.publish(cursor_msg)
+                        # Only compute gaze position if all the data required
+                        if self.verifyData(self.tags, gaze_position):
+                            img_pos, debug_info = computeGazePixel(self.display_frame,
+                                tobii_frame, self.tags, self.params, gaze_position)
 
-                    # Visualization
-                    # TODO: Move to a separate function
-                    gaze_tobii_pos = debug_info['gaze_tobii_pos']
-                    gaze_window_pos = debug_info['gaze_window_pos']
-                    ctrl_corners_tobii = debug_info['ctrl_corners_tobii']
-                    ctrl_corners_window = debug_info['ctrl_corners_window']
+                            # Publish result to ROS
+                            cursor_msg = self.createCursorMsg(img_pos[0], img_pos[1],
+                                self.display_frame.shape[0], self.display_frame.shape[1])
+                            self.cursor_pub.publish(cursor_msg)
 
-                    cv2.circle(tobii_frame, (gaze_tobii_pos[0], gaze_tobii_pos[1]), 10, (0,255,255), -1)
-                    for corner in ctrl_corners_tobii:
-                        cv2.circle(tobii_frame, tuple(corner), 3, (255, 0, 255), -1)
+                            # Visualization
+                            # TODO: Move to a separate function
+                            gaze_tobii_pos = debug_info['gaze_tobii_pos']
+                            gaze_window_pos = debug_info['gaze_window_pos']
+                            ctrl_corners_tobii = debug_info['ctrl_corners_tobii']
+                            ctrl_corners_window = debug_info['ctrl_corners_window']
 
-                    # Update cursor in display window
-                    self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1], ctrl_corners_window)
+                            cv2.circle(tobii_frame, (gaze_tobii_pos[0], gaze_tobii_pos[1]), 10, (0,255,255), -1)
+                            for corner in ctrl_corners_tobii:
+                                cv2.circle(tobii_frame, tuple(corner), 3, (255, 0, 255), -1)
 
-                # Display the resulting frame
-                cv2.imshow('Tobii Pro Glasses 2 - Live Scene', tobii_frame)
-                #
-                # # Convert frame to ROS message
-                # msg = self.bridge.cv2_to_imgmsg(frame, encoding="passthrough") #"bgr8"
-                #
-                # # Publish frame
-                # self.image_pub.publish(msg)
-                #
-                # Press Q on keyboard to  exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-                #
-                # # Keep ROS time
-                # self.rate.sleep()
+                            # Update cursor in display window
+                            self.display_window.updateCursor(gaze_window_pos[0], gaze_window_pos[1], ctrl_corners_window)
+
+                        # Display the resulting frame
+                        cv2.imshow('Tobii Pro Glasses 2 - Live Scene', tobii_frame)
+                        #
+                        # # Convert frame to ROS message
+                        # msg = self.bridge.cv2_to_imgmsg(frame, encoding="passthrough") #"bgr8"
+                        #
+                        # # Publish frame
+                        # self.image_pub.publish(msg)
+                        #
+                        # Press Q on keyboard to  exit
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+                    #
+                    # # Keep ROS time
+                    # self.rate.sleep()
 
             # Break the loop
             else:
@@ -233,5 +246,5 @@ class TobiiGlassesNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=True)
+    tobii_node = TobiiGlassesNode("192.168.1.101", calibrate=False)
     tobii_node.run()
