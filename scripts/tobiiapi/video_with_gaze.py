@@ -42,7 +42,10 @@ try:
     import glib
     import gi
     gi.require_version('Gst', '1.0')
+
+    from gi.repository import Gio as gio
     from gi.repository import Gst as gst
+
     gst.init(None) # needed to find the gstreamer packages
     # from gi.repository import Glib as glib
     print(gst.version())
@@ -71,6 +74,32 @@ class KeepAlive:
 
     def _timeout(self, sock, peer, jsonobj):
         sock.sendto(jsonobj, peer)
+        return True
+
+    def stop(self):
+        glib.source_remove(self._sig)
+
+
+class GKeepAlive:
+    """ Sends keep-alive signals to a peer via a socket """
+    _sig = 0
+
+    # TODO remove hardcode, this is something I added
+    _address = gio.InetSocketAddress.new_from_string("192.168.1.101", 49152)
+
+    def __init__(self, sock, peer, streamtype, timeout=1):
+        jsonobj = json.dumps({
+            'op' : 'start',
+            'type' : ".".join(["live", streamtype, "unicast"]),
+            'key' : 'anything'})
+
+        sock.send_to(self._address, jsonobj)
+        self._sig = glib.timeout_add_seconds(timeout, self._timeout, sock, peer, jsonobj)
+
+    def _timeout(self, sock, peer, jsonobj):
+        # sock.sendto(jsonobj, peer)
+        sock.send_to(self._address, jsonobj)
+        # print("here")
         return True
 
     def stop(self):
@@ -169,6 +198,7 @@ class EyeTracking():
     def _data(self, ioc, cond):
         """ Read next line of data """
         self._buffersync.add_et(json.loads(ioc.readline()))
+        # print(self._buffersync._et_queue)
         return True
 
     def stop(self):
@@ -226,7 +256,11 @@ class Video():
     def start(self, peer, buffersync):
         """ Start grabbing video """
         # Create socket and set syncbuffer
-        self._sock = mksock(peer)
+        # self._sock = mksock(peer)
+        # self._sock = gio.Socket(gio.SocketFamily(2), gio.SocketType(2), gio.SocketProtocol(17))
+        self._sock = gio.Socket.new(gio.SocketFamily(2), gio.SocketType(2), gio.SocketProtocol(17))
+        self._sock.bind(gio.InetSocketAddress.new_from_string("192.168.1.101", 49152))
+        #self._sock = gio.Socket()
         self._buffersync = buffersync
 
         # Create pipeline
@@ -260,7 +294,7 @@ class Video():
         src = self._pipeline.get_by_name("src")
         #sockfd - socket file descriptor
         # src.set_property("sockfd", self._sock.fileno())
-        print(self._sock.fileno())
+        # print(self._sock.fileno())
         # src.set_property("socket", self._sock.fileno()) # This is just the updated name
         src.set_property("socket", self._sock)
 
@@ -272,21 +306,28 @@ class Video():
         self._textovl = self._pipeline.get_by_name("textovl")
 
         # Start video streaming
-        self._keepalive = KeepAlive(self._sock, peer, "video")
+        self._keepalive = GKeepAlive(self._sock, peer, "video")
 
         # Start the video pipeline
-        self._pipeline.set_state(gst.STATE_PLAYING)
+        # self._pipeline.set_state(gst.GST_STATE_PLAYING)
+        self._pipeline.set_state(gst.State.PLAYING)
+
 
     def _bus(self, bus, msg):
         """ Buss message handler
         " We only collect pts-offset pairs
         """
-        if msg.type == gst.MESSAGE_ELEMENT:
-            st = msg.structure
-            # If we have a tsdemux message with pts field then lets store it
-            # for the render pipeline. Will be piced up by the handoff
-            if st.has_name("tsdemux") and st.has_field("pts"):
-                    self._buffersync.add_pts_offset(st['offset'], st['pts'])
+        # print("here")
+        print(msg.type)
+        print(gst.Message.parse_error(msg))
+        # msg
+        # print(msg)
+        # if msg.type == gst.MESSAGE_ELEMENT:
+        #     st = msg.structure
+        #     # If we have a tsdemux message with pts field then lets store it
+        #     # for the render pipeline. Will be piced up by the handoff
+        #     if st.has_name("tsdemux") and st.has_field("pts"):
+        #             self._buffersync.add_pts_offset(st['offset'], st['pts'])
         return True
 
     def _decoded_buffer(self, ident, buf):
