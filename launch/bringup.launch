@@ -1,3 +1,11 @@
 <launch>
-    <rosparam file="$(find tobii_glasses)/config/example_params.yaml" />
+    <!-- <rosparam file="$(find tobii_glasses)/config/example_params.yaml" /> -->
+
+    <node name="vid" ns="test" pkg="tobii_glasses" type="test_video.py"
+      output="screen">
+      <param name="calibrate" value="true" />
+      <param name="ipv4_address" value="192.168.1.101" />
+      <param name="frame_id" value="tobii_camera" />
+    </node>
+    <!-- <node name="vid2" ns="test2" pkg="tobii_glasses" type="test_video.py"/> -->
 </launch>

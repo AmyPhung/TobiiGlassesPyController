@@ -45,20 +45,22 @@ if hasattr(__builtins__, 'raw_input'):
 from tobiiglassesctrl import TobiiGlassesController
 
 class TobiiVideoPublisherNode():
-    def __init__(self, ipv4_address, calibrate=True):
-        self.ipv4_address = ipv4_address # TODO: make this a ros parameter
-        self.tobii = TobiiGlassesController(self.ipv4_address,
-                                            video_scene=True)
-
+    def __init__(self):
         # ROS setup
         rospy.init_node("tobii_video_publisher")
+
+        calibrate = rospy.get_param("~calibrate", False)
+        self.ipv4_address = rospy.get_param("~ipv4_address", "192.168.1.101")
+        self.frame_id = rospy.get_param("~frame_id", "tobii_camera")
+
         self.img_pub = rospy.Publisher("tobii_camera/image_raw", Image, queue_size=1)
         self.gaze_pub = rospy.Publisher("tobii_gaze", PointStamped, queue_size=1)
         self.bridge = CvBridge()
 
-        self.frame_id = "tobii_camera" # TODO: make this a ros parameter
-
         # Tobii glasses setup
+        self.tobii = TobiiGlassesController(self.ipv4_address,
+                                            video_scene=True)
+
         if calibrate:
             # TODO: Remove hardcode
             project_id = self.tobii.create_project("Tobii ROS node")
@@ -227,7 +229,7 @@ class TobiiVideoPublisherNode():
 
 
 if __name__ == "__main__":
-    tobii_node = TobiiVideoPublisherNode("192.168.1.101", calibrate=False)
+    tobii_node = TobiiVideoPublisherNode()
     tobii_node.run()
 
 
