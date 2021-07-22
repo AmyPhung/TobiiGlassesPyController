@@ -224,8 +224,21 @@ class Video():
     #     "xvimagesink force-aspect-ratio=True name=video" # Output on XV video - where will the frames be written to?
     # ]
 
+    # _PIPEDEF=[
+    #     #"udpsrc name=src blocksize=1316 close-socket=false buffer-size=5600", # UDP video data
+    #     "udpsrc address=192.168.1.101 port=49152 blocksize=1316 close-socket=false buffer-size=5600", # UDP video data
+    #     "tsparse",                      # parse the incoming stream to MPegTS
+    #     "tsdemux emit-stats=True",      # get pts statistics from the MPegTS stream - this converts from udp packets to make a frame
+    #     "queue",                        # build queue for the decoder - buffer
+    #     "avdec_h264 max-threads=0",     # decode the incoming stream to frames - the actual decoding
+    #     "identity name=decoded",        # used to grab video frame to be displayed
+    #     "textoverlay name=textovl text=* halignment=position valignment=position xpad=0  ypad=0", # simple text overlay
+    #     "xvimagesink force-aspect-ratio=True name=video" # Output on XV video - where will the frames be written to?
+    # ]
+
     _PIPEDEF=[
-        "udpsrc name=src blocksize=1316 close-socket=false buffer-size=5600", # UDP video data
+        #"udpsrc name=src blocksize=1316 close-socket=false buffer-size=5600", # UDP video data
+        "rtsp://192.168.1.101:8554/live/scene", # UDP video data
         "tsparse",                      # parse the incoming stream to MPegTS
         "tsdemux emit-stats=True",      # get pts statistics from the MPegTS stream - this converts from udp packets to make a frame
         "queue",                        # build queue for the decoder - buffer
@@ -234,6 +247,9 @@ class Video():
         "textoverlay name=textovl text=* halignment=position valignment=position xpad=0  ypad=0", # simple text overlay
         "xvimagesink force-aspect-ratio=True name=video" # Output on XV video - where will the frames be written to?
     ]
+
+
+
     _pipeline = None    # The GStreamer pipeline
     _textovl = None     # Text overlay element
     _keepalive = None   # Keepalive for video
@@ -258,13 +274,14 @@ class Video():
         # Create socket and set syncbuffer
         # self._sock = mksock(peer)
         # self._sock = gio.Socket(gio.SocketFamily(2), gio.SocketType(2), gio.SocketProtocol(17))
-        self._sock = gio.Socket.new(gio.SocketFamily(2), gio.SocketType(2), gio.SocketProtocol(17))
-        self._sock.bind(gio.InetSocketAddress.new_from_string("192.168.1.101", 49152))
+        # self._sock = gio.Socket.new(gio.SocketFamily(2), gio.SocketType(2), gio.SocketProtocol(17))
+        # self._sock.bind(gio.InetSocketAddress.new_from_string("192.168.1.101", 49152))
         #self._sock = gio.Socket()
         self._buffersync = buffersync
 
         # Create pipeline
         print(" ! ".join(self._PIPEDEF))
+        print(gst.parse_launch(" ! ".join(self._PIPEDEF)))
         self._pipeline=gst.parse_launch(" ! ".join(self._PIPEDEF))
 
 
@@ -291,12 +308,12 @@ class Video():
         # halignment=position valignment=position xpad=0  ypad=0 ! xvimagesink
         # force-aspect-ratio=True name=video
 
-        src = self._pipeline.get_by_name("src")
-        #sockfd - socket file descriptor
-        # src.set_property("sockfd", self._sock.fileno())
-        # print(self._sock.fileno())
-        # src.set_property("socket", self._sock.fileno()) # This is just the updated name
-        src.set_property("socket", self._sock)
+        # src = self._pipeline.get_by_name("src")
+        # #sockfd - socket file descriptor
+        # # src.set_property("sockfd", self._sock.fileno())
+        # # print(self._sock.fileno())
+        # # src.set_property("socket", self._sock.fileno()) # This is just the updated name
+        # src.set_property("socket", self._sock)
 
         # Catch decoded frames
         decoded = self._pipeline.get_by_name("decoded")
@@ -306,7 +323,7 @@ class Video():
         self._textovl = self._pipeline.get_by_name("textovl")
 
         # Start video streaming
-        self._keepalive = GKeepAlive(self._sock, peer, "video")
+        # self._keepalive = GKeepAlive(self._sock, peer, "video")
 
         # Start the video pipeline
         # self._pipeline.set_state(gst.GST_STATE_PLAYING)
