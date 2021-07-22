@@ -2,6 +2,9 @@
 
 """
 Test script to check timing of publishing tobii camera frames to ROS
+
+Takes a few seconds to measure  Adjusts timestamp of
+the gaze ROS message to be synced with the frame
 """
 
 #!/usr/bin/env python
@@ -31,6 +34,7 @@ import numpy as np
 import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import PointStamped
 from tobii_glasses.msg import PixelLabeled
 
 if hasattr(__builtins__, 'raw_input'):
@@ -54,7 +58,6 @@ class TobiiVideoPublisherNode():
         # ROS setup
         rospy.init_node("tobii_video_publisher")
         self.img_pub = rospy.Publisher("tobii_camera", Image, queue_size=1)
-
         self.bridge = CvBridge()
 
         # Tobii glasses setup
@@ -84,6 +87,8 @@ class TobiiVideoPublisherNode():
 
         # Read until video is completed
         self.tobii.start_streaming()
+        self.time_offset = 0
+        self.syncTimestamps()
 
         # Create resizable live display window
         # TODO: bind this to a display param
@@ -91,32 +96,57 @@ class TobiiVideoPublisherNode():
 
         self.ready = True
 
+    def syncTimestamps(self, num_samples=50):
+        """ Updates `time_offset` by computing average difference between
+        ROS time and video feed timestamps """
+
+        timestamps = np.zeros(num_samples)
+
+        for i in range(num_samples):
+            ret, frame = self.cap.read()
+            t_frame = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+            t_ros = rospy.get_time()
+            timestamps[i] = t_ros - t_frame
+
+        self.time_offset = timestamps.mean()
+
+
+
     def run(self):
         while self.cap.isOpened() and not rospy.is_shutdown():
-            print("New Loop")
+            # print("New Loop")
 
             # TODO: Decide if buffer flush is needed
-            t1 = time.time()
+            # t1 = time.time()
             ret, frame = self.cap.read()
-            print(time.time()-t1)
+            t = self.cap.get(cv2.CAP_PROP_POS_MSEC)
+            # print("Frame time: " + str(t/1000.0))
+
+            # print(rospy.get_time() - t/1000.0)
+            # print(rospy.get_time())
+            # print(self.start_time + t/1000.0)
+            time_delta = t/1000.0 - (rospy.get_time() - self.time_offset)
+            if time_delta > 0.02:
+                rospy.logwarn("Time sync error. Resyncing") # TODO: improve warning message
+                self.syncTimestamps()
 
             if ret == True:
                 height, width = frame.shape[:2]
 
-                t2 = time.time()
+                # t2 = time.time()
                 # Display the resulting frame
                 cv2.imshow('Tobii Pro Glasses 2 - Live Scene', frame)
-                print(time.time()-t2)
+                # print(time.time()-t2)
 
-                t3 = time.time()
+                # t3 = time.time()
                 # Convert frame to ROS message
                 msg = self.bridge.cv2_to_imgmsg(frame)#, encoding="passthrough") #"bgr8"
-                print(time.time()-t3)
+                # print(time.time()-t3)
 
-                t4 = time.time()
+                # t4 = time.time()
                 # Publish frame
                 self.img_pub.publish(msg)
-                print(time.time()-t4)
+                # print(time.time()-t4)
 
                 # Press Q on keyboard to  exit
                 if cv2.waitKey(1) & 0xFF == ord('q'):
