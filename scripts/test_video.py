@@ -3,6 +3,8 @@
 """
 Test script to check timing of publishing tobii camera frames to ROS
 
+Assume video is up to date
+
 Takes a few seconds to measure  Adjusts timestamp of
 the gaze ROS message to be synced with the frame
 """
@@ -35,30 +37,26 @@ import rospy
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PointStamped
-from tobii_glasses.msg import PixelLabeled
 
 if hasattr(__builtins__, 'raw_input'):
       input=raw_input
 
 # Relative Imports
 from tobiiglassesctrl import TobiiGlassesController
-from aruco_interface import ArucoWindow
-from helper_functions import computeTagDetections
-from helper_functions import computeGazePixel
-
-
 
 class TobiiVideoPublisherNode():
     def __init__(self, ipv4_address, calibrate=True):
-        self.ready = False
-        self.ipv4_address = ipv4_address
+        self.ipv4_address = ipv4_address # TODO: make this a ros parameter
         self.tobii = TobiiGlassesController(self.ipv4_address,
                                             video_scene=True)
 
         # ROS setup
         rospy.init_node("tobii_video_publisher")
-        self.img_pub = rospy.Publisher("tobii_camera", Image, queue_size=1)
+        self.img_pub = rospy.Publisher("tobii_camera/image_raw", Image, queue_size=1)
+        self.gaze_pub = rospy.Publisher("tobii_gaze", PointStamped, queue_size=1)
         self.bridge = CvBridge()
+
+        self.frame_id = "tobii_camera" # TODO: make this a ros parameter
 
         # Tobii glasses setup
         if calibrate:
@@ -87,74 +85,135 @@ class TobiiVideoPublisherNode():
 
         # Read until video is completed
         self.tobii.start_streaming()
-        self.time_offset = 0
-        self.syncTimestamps()
 
         # Create resizable live display window
         # TODO: bind this to a display param
         cv2.namedWindow('Tobii Pro Glasses 2 - Live Scene', cv2.WINDOW_NORMAL)
 
-        self.ready = True
+        # Private Variables
+        self._prev_ts = 0 # Used for detecting new gaze data
 
-    def syncTimestamps(self, num_samples=50):
-        """ Updates `time_offset` by computing average difference between
-        ROS time and video feed timestamps """
-
-        timestamps = np.zeros(num_samples)
-
-        for i in range(num_samples):
-            ret, frame = self.cap.read()
-            t_frame = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
-            t_ros = rospy.get_time()
-            timestamps[i] = t_ros - t_frame
-
-        self.time_offset = timestamps.mean()
+    # def syncTimestamps(self, num_samples=50):
+    #     """ Updates `time_offset` by computing average difference between
+    #     ROS time and video feed timestamps """
+    #
+    #     timestamps = np.zeros(num_samples)
+    #
+    #     for i in range(num_samples):
+    #         ret, frame = self.cap.read()
+    #         t_frame = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+    #         t_ros = rospy.get_time()
+    #         timestamps[i] = t_ros - t_frame
+    #
+    #     self.time_offset = timestamps.mean()
 
 
 
     def run(self):
+
+        min_val = 0
+
         while self.cap.isOpened() and not rospy.is_shutdown():
-            # print("New Loop")
+            print("New Loop")
 
-            # TODO: Decide if buffer flush is needed
-            # t1 = time.time()
+            t1 = time.time() ##################################################
             ret, frame = self.cap.read()
-            t = self.cap.get(cv2.CAP_PROP_POS_MSEC)
-            # print("Frame time: " + str(t/1000.0))
+            print(time.time() - t1) ###########################################
 
-            # print(rospy.get_time() - t/1000.0)
-            # print(rospy.get_time())
-            # print(self.start_time + t/1000.0)
-            time_delta = t/1000.0 - (rospy.get_time() - self.time_offset)
-            if time_delta > 0.02:
-                rospy.logwarn("Time sync error. Resyncing") # TODO: improve warning message
-                self.syncTimestamps()
+            t2 = time.time() ##################################################
+            # Gaze data
+            data = self.tobii.get_data()
+            print(data)
+            data_pts = data['pts']
+            data_gp  = data['gp']
 
-            if ret == True:
+            time_offset = rospy.get_time() - data_pts['ts'] / 1000000.0
+            t_ros_pts = data_pts['ts'] / 1000000.0 + time_offset # Image ROS time
+            t_gp_pts = data_gp['ts'] / 1000000.0 + time_offset # Gaze ROS time
+            print(time.time() - t2) ###########################################
+
+            if ret == True: # Check for valid image
                 height, width = frame.shape[:2]
-
-                # t2 = time.time()
-                # Display the resulting frame
-                cv2.imshow('Tobii Pro Glasses 2 - Live Scene', frame)
-                # print(time.time()-t2)
-
-                # t3 = time.time()
+                t3 = time.time() ##################################################
                 # Convert frame to ROS message
-                msg = self.bridge.cv2_to_imgmsg(frame)#, encoding="passthrough") #"bgr8"
-                # print(time.time()-t3)
+                img_msg = self.bridge.cv2_to_imgmsg(frame)#, encoding="passthrough") #"bgr8"
+                img_msg.header.frame_id = self.frame_id
+                img_msg.header.stamp = rospy.Time.from_sec(t_ros_pts)
 
-                # t4 = time.time()
                 # Publish frame
-                self.img_pub.publish(msg)
-                # print(time.time()-t4)
+                self.img_pub.publish(img_msg)
+                print(time.time() - t3) ###########################################
 
-                # Press Q on keyboard to  exit
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                t4 = time.time() ##################################################
+                if data_gp['ts'] > 0 and self._prev_ts != data_gp['ts']: # Check for new gaze detection
+                    # Convert gaze data to ROS message
+                    gaze_msg = PointStamped()
+                    gaze_msg.header.frame_id = img_msg.header.frame_id
+                    gaze_msg.header.stamp = rospy.Time.from_sec(t_gp_pts)
+                    gaze_msg.point.x = int(data_gp['gp'][0]*width)
+                    gaze_msg.point.y = int(data_gp['gp'][1]*height)
 
-            # Break the loop
-            else:
+                    # Publish gaze data
+                    self.gaze_pub.publish(gaze_msg)
+
+                    # Update previous timestamp
+                    self._prev_ts = data_gp['ts']
+                print(time.time() - t4) ###########################################
+
+            # Press Q on keyboard to exit
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+
+            #
+            # if data_gp['ts'] > 0: # Check for gaze detection
+            #     # Convert from video timestamp (pts) to gaze data timestamp (ts)
+            #     # print(t/1000.0) # current video timestamp
+            #     # print(data_pts['pts'] / 100000.0)
+            #     # print(data_pts['pts'] / 100000.0)
+            #     # # print(data_pts['ts'] / 1000000.0)
+            #     offset = data_pts['ts'] / 1000000.0 - data_pts['pts'] / 100000.0
+            #     # print(data_gp['ts'] / 1000000.0 - offset) # current gaze timestamp
+            #     # print(data_gp['ts'])
+            #     # print(data_pts['ts'])
+            #     # delta = data_pts['ts'] / 1000000.0 - data_gp['ts'] / 1000000.0
+            #     # print(data_pts['ts'] / 1000000.0)
+            #     # print(data_gp['ts'] / 1000000.0)
+            #     # print(delta) # I THINK THIS IS IT - in this delta, the gaze timestamp is bigger when it's updating regularly
+            #
+            #     # if delta < min_val:
+            #     #     min_val = delta
+            #     #     print("Low: ", min_val)
+            #     for i in range(1000000):
+            #         a = 1+1
+            #
+            #
+            #     # print(t/1000.0)
+            #     # print(data_pts['pts'] / 100000.0)
+            #
+            #     # print()
+            #     # print(data_gp['ts'])
+            # #
+            # # gaze_position = ()
+            # #
+            # #
+            #     gaze_position = (int(data_gp['gp'][0]*width),
+            #                      int(data_gp['gp'][1]*height))
+            # #
+            # #     # Display eye tracking location
+            #     cv2.circle(frame, gaze_position, 60, (0,0,255), 5)
+            #
+            # tobii_frame, corners, ids = computeTagDetections(tobii_frame)
+            #
+            #
+            # # Break the loop
+            # else:
+            #     break
+
+            # t2 = time.time()
+            # Display the resulting frame
+            cv2.imshow('Tobii Pro Glasses 2 - Live Scene', frame)
+            # print(time.time()-t2)
 
         # When everything done, release the video capture object
         self.cap.release()
