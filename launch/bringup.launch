@@ -3,7 +3,7 @@
 
     <node name="vid" ns="test" pkg="tobii_glasses" type="test_video.py"
       output="screen">
-      <param name="calibrate" value="true" />
+      <param name="calibrate" value="false" />
       <param name="ipv4_address" value="192.168.1.101" />
       <param name="frame_id" value="tobii_camera" />
     </node>

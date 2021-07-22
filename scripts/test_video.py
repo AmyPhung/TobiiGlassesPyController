@@ -160,6 +160,10 @@ class TobiiVideoPublisherNode():
 
                     # Update previous timestamp
                     self._prev_ts = data_gp['ts']
+
+                    # Display eye tracking location
+                    gp = (gaze_msg.point.x, gaze_msg.point.y)
+                    cv2.circle(frame, gp, 60, (0,0,255), 5)
                 print(time.time() - t4) ###########################################
 
             # Press Q on keyboard to exit
