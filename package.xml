@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>tobii_glasses_ros</name>
+  <version>0.0.1</version>
+  <description>A package that provides a ROS interface with the Tobii
+    Pro Glasses 2
+  </description>
+
+  <maintainer email="aphung@mit.edu">Amy Phung</maintainer>
+
+  <license>GPLv3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>cv_bridge</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rospy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+</package>

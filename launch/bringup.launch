@@ -1,0 +1,8 @@
+<launch>
+    <node name="tobii_node" pkg="tobii_glasses_ros"
+      type="tobii_publisher_node.py" output="screen">
+      <param name="calibrate" value="false" />
+      <param name="ipv4_address" value="192.168.71.50" />
+      <param name="frame_id" value="tobii_camera" />
+    </node>
+</launch>

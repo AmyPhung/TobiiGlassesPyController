@@ -25,6 +25,7 @@ import logging
 import struct
 import sys
 import select
+import rospy
 
 # python2 backwards compatibility for errors
 if sys.version_info[0] < 3:
@@ -59,7 +60,7 @@ class TobiiGlassesController():
 		self.udpport = 49152
 		self.address = address
 		self.iface_name = None
-		logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
+		# logging.basicConfig(format='[%(levelname)s]: %(message)s', level=logging.DEBUG)
 
 		self.data = {}
 		nd = {'ts': -1}
@@ -100,31 +101,31 @@ class TobiiGlassesController():
 		self.close()
 
 	def __connect__(self, timeout = None):
-		logging.debug("Connecting to the Tobii Pro Glasses 2 ...")
+		rospy.loginfo("Connecting to the Tobii Pro Glasses 2 ...")
 		self.data_socket = self.__mksock__()
 		if self.video_scene:
 			self.video_socket = self.__mksock__()
 		res = self.wait_until_status_is_ok(timeout=timeout)
 		if res is True:
-			logging.debug("Tobii Pro Glasses 2 successful connected!")
+			rospy.loginfo("Tobii Pro Glasses 2 successful connected!")
 		else:
-			logging.error("An error occurs trying to connect to the Tobii Pro Glasses")
+			rospy.logerr("An error occurs trying to connect to the Tobii Pro Glasses")
 		return res
 
 	def __disconnect__(self):
-		logging.debug("Disconnecting to the Tobii Pro Glasses 2")
+		rospy.loginfo("Disconnecting to the Tobii Pro Glasses 2")
 		self.data_socket.close()
 		if self.video_scene:
 			self.video_socket.close()
-		logging.debug("Tobii Pro Glasses 2 successful disconnected!")
+		rospy.loginfo("Tobii Pro Glasses 2 successful disconnected!")
 		return True
 
 	def __discover_device__(self):
 		if TOBII_DISCOVERY_ALLOWED == False:
-			logging.error("Device discovery is not available due to a missing dependency (netifaces)")
+			rospy.logerr("Device discovery is not available due to a missing dependency (netifaces)")
 			exit(1)
 
-		logging.debug("Looking for a Tobii Pro Glasses 2 device ...")
+		rospy.loginfo("Looking for a Tobii Pro Glasses 2 device ...")
 		MULTICAST_ADDR = 'ff02::1'
 		PORT = 13006
 
@@ -141,20 +142,20 @@ class TobiiGlassesController():
 					try:
 						discover_json = '{"type":"discover"}'
 						s6.sendto(discover_json.encode('utf-8'), (MULTICAST_ADDR, PORT_OUT))
-						logging.debug("Discover request sent to %s on interface %s " % ( str((MULTICAST_ADDR, PORT_OUT)),if_name) )
-						logging.debug("Waiting for a reponse from the device ...")
+						rospy.loginfo("Discover request sent to %s on interface %s " % ( str((MULTICAST_ADDR, PORT_OUT)),if_name) )
+						rospy.loginfo("Waiting for a reponse from the device ...")
 						data, address = s6.recvfrom(1024)
 						jdata = json.loads(data.decode('utf-8'))
-						logging.debug("From: " + address[0] + " " + str(data))
-						logging.debug("Tobii Pro Glasses found with address: [%s]" % address[0])
+						rospy.loginfo("From: " + address[0] + " " + str(data))
+						rospy.loginfo("Tobii Pro Glasses found with address: [%s]" % address[0])
 						addr = address[0]
 						if sys.version_info.major == 3 and sys.version_info.minor >= 8:
 							addr = address[0] + '%' + if_name
 						return (jdata, addr)
 					except:
-						logging.debug("No device found on interface %s" % if_name)
+						rospy.loginfo("No device found on interface %s" % if_name)
 
-		logging.debug("The discovery process did not find any device!")
+		rospy.loginfo("The discovery process did not find any device!")
 		return (None, None)
 
 	def __get_current_datetime__(self, timeformat=TOBII_DATETIME_FORMAT):
@@ -177,7 +178,7 @@ class TobiiGlassesController():
 				jdata = json.loads(data.decode('utf-8'))
 				self.__refresh_data__(jdata)
 			except socket.timeout:
-				logging.error("A timeout occurred while receiving data")
+				rospy.logerr("A timeout occurred while receiving data")
 				self.streaming = False
 
 	def __mksock__(self):
@@ -201,13 +202,13 @@ class TobiiGlassesController():
 		req = Request(url)
 		req.add_header('Content-Type', 'application/json')
 		data = json.dumps(data)
-		logging.debug("Sending JSON: " + str(data))
+		rospy.loginfo("Sending JSON: " + str(data))
 		if wait_for_response is False:
 			threading.Thread(target=urlopen, args=(req, data.encode('utf-8'),)).start()
 			return None
 		response = urlopen(req, data.encode('utf-8'))
 		res = response.read()
-		logging.debug("Response: " + str(res))
+		rospy.loginfo("Response: " + str(res))
 		try:
 			res = json.loads(res.decode('utf-8'))
 		except:
@@ -308,10 +309,10 @@ class TobiiGlassesController():
 		if self.video_scene:
 			self.tv = threading.Timer(0, self.__send_keepalive_msg__, [self.video_socket, self.KA_VIDEO_MSG])
 			self.tv.start()
-			logging.debug("Video streaming started...")
+			rospy.loginfo("Video streaming started...")
 		self.td.start()
 		self.tg.start()
-		logging.debug("Data streaming started...")
+		rospy.loginfo("Data streaming started...")
 
 	def close(self):
 		if self.address is not None:
@@ -324,7 +325,7 @@ class TobiiGlassesController():
 				'ca_participant': participant_id,
 				'ca_created': self.__get_current_datetime__()}
 		json_data = self.__post_request__('/api/calibrations', data)
-		logging.debug("Calibration " + json_data['ca_id'] + "created! Project: " + project_id + ", Participant: " + participant_id)
+		rospy.loginfo("Calibration " + json_data['ca_id'] + "created! Project: " + project_id + ", Participant: " + participant_id)
 		return json_data['ca_id']
 
 	def create_participant(self, project_id, participant_name = "DefaultUser", participant_notes = ""):
@@ -338,10 +339,10 @@ class TobiiGlassesController():
 								 'Notes': participant_notes},
 					'pa_created': self.__get_current_datetime__()}
 			json_data = self.__post_request__('/api/participants', data)
-			logging.debug("Participant " + json_data['pa_id'] + " created! Project " + project_id)
+			rospy.loginfo("Participant " + json_data['pa_id'] + " created! Project " + project_id)
 			return json_data['pa_id']
 		else:
-			logging.debug("Participant %s already exists ..." % participant_id)
+			rospy.loginfo("Participant %s already exists ..." % participant_id)
 			return participant_id
 
 	def create_project(self, projectname = "DefaultProjectName"):
@@ -353,10 +354,10 @@ class TobiiGlassesController():
 								 'Name': projectname},
 					'pr_created': self.__get_current_datetime__() }
 			json_data = self.__post_request__('/api/projects', data)
-			logging.debug("Project %s created!" % json_data['pr_id'])
+			rospy.loginfo("Project %s created!" % json_data['pr_id'])
 			return json_data['pr_id']
 		else:
-			logging.debug("Project %s already exists ..." % project_id)
+			rospy.loginfo("Project %s already exists ..." % project_id)
 			return project_id
 
 	def create_recording(self, participant_id, recording_notes = ""):
@@ -525,18 +526,18 @@ class TobiiGlassesController():
 		return False
 
 	def start_streaming(self):
-		logging.debug("Start streaming ...")
+		rospy.loginfo("Start streaming ...")
 		try:
 			self.__start_streaming__()
 		except:
-			logging.error("An error occurs trying to connect to the Tobii Pro Glasses")
+			rospy.logerr("An error occurs trying to connect to the Tobii Pro Glasses")
 
 	def stop_recording(self, recording_id):
 		self.__post_request__('/api/recordings/' + recording_id + '/stop')
 		return self.wait_for_recording_status(recording_id, ['done']) == "done"
 
 	def stop_streaming(self):
-		logging.debug("Stop data streaming ...")
+		rospy.loginfo("Stop data streaming ...")
 		try:
 			if self.streaming:
 				self.streaming = False
@@ -544,9 +545,9 @@ class TobiiGlassesController():
 				self.tg.join()
 				if self.video_scene:
 					self.tv.join()
-			logging.debug("Data streaming successful stopped!")
+			rospy.loginfo("Data streaming successful stopped!")
 		except:
-			logging.error("An error occurs trying to stop data streaming")
+			rospy.logerr("An error occurs trying to stop data streaming")
 
 	def wait_for_recording_status(self, recording_id, status_array = ['init', 'starting',
 	'recording', 'pausing', 'paused', 'stopping', 'stopped', 'done', 'stale', 'failed'], timeout = None):
@@ -561,7 +562,7 @@ class TobiiGlassesController():
 			try:
 				response = urlopen(req, None, timeout = timeout)
 			except URLError as e:
-				logging.error(e.reason)
+				rospy.logerr(e.reason)
 				return -1
 			data = response.read()
 			json_data = json.loads(data.decode('utf-8'))
@@ -573,12 +574,12 @@ class TobiiGlassesController():
 	def wait_until_calibration_is_done(self, calibration_id, timeout = None):
 		while True:
 			status = self.wait_for_status('/api/calibrations/' + calibration_id + '/status', 'ca_state', ['calibrating', 'calibrated', 'stale', 'uncalibrated', 'failed'], timeout)
-			logging.debug("Calibration status %s" % status)
+			rospy.loginfo("Calibration status %s" % status)
 			if status == 'uncalibrated' or status == 'stale' or status == 'failed':
-				logging.debug("Calibration %s failed " % calibration_id)
+				rospy.loginfo("Calibration %s failed " % calibration_id)
 				return False
 			elif status == 'calibrated':
-				logging.debug("Calibration %s successful " % calibration_id)
+				rospy.loginfo("Calibration %s successful " % calibration_id)
 				return True
 
 	def wait_until_status_is_ok(self, timeout = None):
